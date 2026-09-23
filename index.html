@@ -90,18 +90,20 @@ td{padding:6px 8px;font-size:13.5px;border-bottom:1px solid var(--line);vertical
 .stat small{display:block;color:var(--coolgray);font-size:12px}
 
 /* leakage chart */
-.leak{background:#000;color:#fff;border-top:3px solid var(--gold);margin-top:14px;padding:14px 18px 6px}
+.leak{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-top:3px solid var(--gold);margin-top:14px;padding:14px 18px 10px}
 .leakHead{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:baseline;justify-content:space-between}
-.leak h2{margin:0 0 2px;font-size:16px;font-weight:600;font-family:"Archivo Narrow",sans-serif;letter-spacing:.06em;color:var(--gold)}
+.leak h2{margin:0 0 2px;font-size:16px;font-weight:600;font-family:"Archivo Narrow",sans-serif;letter-spacing:.06em;color:var(--aged)}
 .leakChips{display:flex;gap:6px;flex-wrap:wrap}
-.leakChip{border:1.5px solid var(--steel);background:transparent;color:var(--steam);padding:5px 11px;border-radius:2px;
+.leakChip{border:1.5px solid var(--line);background:var(--surface);color:var(--muted);padding:5px 11px;border-radius:2px;
   font-family:"Archivo Narrow",sans-serif;font-size:12.5px;font-weight:600;letter-spacing:.04em;cursor:pointer}
-.leakChip:hover{border-color:var(--gold);color:#fff}
+.leakChip:hover{border-color:var(--aged);color:var(--ink)}
 .leakChip[aria-pressed="true"]{background:var(--rush);border-color:var(--rush);color:#1C1C1C}
-.leak p{margin:0 0 8px;font-size:13.5px;color:var(--steam)}
+.leak p{margin:0 0 4px;font-size:13.5px;color:var(--muted)}
+.leakTotal{margin:0 0 10px;font-size:14px;color:var(--ink)}
+.leakTotal strong{font-family:"Archivo Narrow",sans-serif;font-weight:700;color:var(--aged)}
 svg{display:block;width:100%;height:auto}
-.lk-name{fill:#fff;font-size:9.5px}
-.lk-val{fill:var(--gold);font-size:9.5px;font-family:"Archivo Narrow",sans-serif}
+.lk-name{fill:var(--ink);font-size:9.5px}
+.lk-val{fill:var(--aged);font-size:9.5px;font-family:"Archivo Narrow",sans-serif}
 .lk-bar{fill:var(--rush)}
 .lk-bar.inreg{fill:var(--steam)}
 
@@ -119,6 +121,7 @@ svg{display:block;width:100%;height:auto}
   font-size:14px;font-weight:600;letter-spacing:.03em;cursor:pointer}
 .chip[aria-pressed="true"]{background:var(--black);color:#fff;border-color:var(--rush)}
 #t2 table{min-width:780px}
+#t2 .scroll{overflow-y:auto;max-height:640px}
 #t2 tbody tr:nth-child(odd) td{background:var(--surface-2)}
 #t2 tbody tr:hover td{background:var(--dust);color:#1C1C1C}
 td.naics{font-family:"Archivo Narrow",sans-serif;font-weight:600;letter-spacing:.05em;color:var(--aged)}
@@ -206,13 +209,14 @@ main{padding-bottom:46px}
     <div class="leakHead">
       <h2 id="leakTitle">LARGEST IMPORT LEAKAGE</h2>
       <div class="leakChips" id="leakChips" role="group" aria-label="Number of industries shown">
-        <button class="leakChip" type="button" data-n="5">Top 5</button>
-        <button class="leakChip" type="button" data-n="10" aria-pressed="true">Top 10</button>
+        <button class="leakChip" type="button" data-n="5" aria-pressed="true">Top 5</button>
+        <button class="leakChip" type="button" data-n="10">Top 10</button>
         <button class="leakChip" type="button" data-n="15">Top 15</button>
         <button class="leakChip" type="button" data-n="25">Top 25</button>
       </div>
     </div>
     <p>Supplier industries in this cluster import mostly from outside the region. Gold is imported, gray is purchased in-region.</p>
+    <p class="leakTotal" id="leakTotal"></p>
     <svg id="leakChart" viewBox="0 0 850 280" role="img" aria-label="Top imported supplier industries by dollar value"></svg>
   </section>
 
@@ -273,7 +277,7 @@ const CLUSTERS = PAYLOAD.clusters;
 const N = {naics:0, sup:1, inr:2, imp:3, tot:4, l2_25:5, l6_25:6};
 
 const DEFAULTS = {sel:0, q:'', onlyImport:false, onlyLtc:false, hideZero:true,
-                  sort:'imp', dir:-1, page:1, per:25, c1:'name', d1:1, leakTop:10};
+                  sort:'imp', dir:-1, page:1, per:25, c1:'name', d1:1, leakTop:5};
 let S = Object.assign({}, DEFAULTS);
 
 const usd = v => '$' + Math.round(v).toLocaleString('en-US');
@@ -520,6 +524,16 @@ function drawLeak(rows){
   const titleEl = document.getElementById('leakTitle');
   titleEl.textContent = 'LARGEST IMPORT LEAKAGE';
 
+  const totalEl = document.getElementById('leakTotal');
+  if(top.length){
+    const sumImp = top.reduce((a,r)=>a+r[N.imp], 0);
+    const sumTot = top.reduce((a,r)=>a+r[N.tot], 0);
+    totalEl.innerHTML = 'Total across these ' + top.length + ' industries: <strong>' +
+      usd(sumImp) + '</strong> imported of ' + usd(sumTot) + ' total purchases.';
+  } else {
+    totalEl.textContent = '';
+  }
+
   /* Full industry names, wrapped onto multiple lines rather than cut off.
      More room for names, less for the bars themselves. */
   const W = 850, padT = 8, labelW = 460, valW = 150;
@@ -620,7 +634,7 @@ document.getElementById('reset').onclick = ()=>{
   document.getElementById('fLtc').setAttribute('aria-pressed','false');
   document.getElementById('fNonzero').setAttribute('aria-pressed','true');
   document.getElementById('perPage').value = '25';
-  document.querySelectorAll('.leakChip').forEach(b=>b.setAttribute('aria-pressed', b.dataset.n === '10' ? 'true' : 'false'));
+  document.querySelectorAll('.leakChip').forEach(b=>b.setAttribute('aria-pressed', b.dataset.n === '5' ? 'true' : 'false'));
   drawClusters(); drawDetail();
   if(window.scrollTo) window.scrollTo({top:0, behavior:'smooth'});
 };
