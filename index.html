@@ -100,8 +100,8 @@ td{padding:6px 8px;font-size:13.5px;border-bottom:1px solid var(--line);vertical
 .leakChip[aria-pressed="true"]{background:var(--rush);border-color:var(--rush);color:#1C1C1C}
 .leak p{margin:0 0 8px;font-size:13.5px;color:var(--steam)}
 svg{display:block;width:100%;height:auto}
-.lk-name{fill:#fff;font-size:11px}
-.lk-val{fill:var(--gold);font-size:11px;font-family:"Archivo Narrow",sans-serif}
+.lk-name{fill:#fff;font-size:9.5px}
+.lk-val{fill:var(--gold);font-size:9.5px;font-family:"Archivo Narrow",sans-serif}
 .lk-bar{fill:var(--rush)}
 .lk-bar.inreg{fill:var(--steam)}
 
@@ -204,7 +204,7 @@ main{padding-bottom:46px}
 
   <section class="leak">
     <div class="leakHead">
-      <h2 id="leakTitle">LARGEST IMPORT LEAKAGE — TOP 10</h2>
+      <h2 id="leakTitle">LARGEST IMPORT LEAKAGE</h2>
       <div class="leakChips" id="leakChips" role="group" aria-label="Number of industries shown">
         <button class="leakChip" type="button" data-n="5">Top 5</button>
         <button class="leakChip" type="button" data-n="10" aria-pressed="true">Top 10</button>
@@ -212,8 +212,8 @@ main{padding-bottom:46px}
         <button class="leakChip" type="button" data-n="25">Top 25</button>
       </div>
     </div>
-    <p>Supplier industries this cluster buys mostly from outside the region — the shortlist for import substitution. Gold is imported, gray is bought in-region.</p>
-    <svg id="leakChart" viewBox="0 0 760 280" role="img" aria-label="Top imported supplier industries by dollar value"></svg>
+    <p>Supplier industries in this cluster import mostly from outside the region. Gold is imported, gray is purchased in-region.</p>
+    <svg id="leakChart" viewBox="0 0 850 280" role="img" aria-label="Top imported supplier industries by dollar value"></svg>
   </section>
 
   <section class="card" id="t2" aria-label="Supply chain detail">
@@ -496,47 +496,82 @@ function drawDetail(){
 const NS = 'http://www.w3.org/2000/svg';
 const mk = (t,a)=>{ const e = document.createElementNS(NS,t); for(const k in a) e.setAttribute(k,a[k]); return e; };
 
+/* Word-wrap a name into lines no wider than maxChars characters each,
+   breaking on spaces so nothing gets truncated with "...". maxChars is an
+   estimate from font metrics, not exact, so it errs slightly generous. */
+function wrapLabel(text, maxChars){
+  const words = text.split(' ');
+  const lines = [];
+  let cur = '';
+  words.forEach(w=>{
+    const trial = cur ? cur + ' ' + w : w;
+    if(trial.length > maxChars && cur){ lines.push(cur); cur = w; }
+    else cur = trial;
+  });
+  if(cur) lines.push(cur);
+  return lines;
+}
+
 function drawLeak(rows){
   const svg = document.getElementById('leakChart');
   svg.innerHTML = '';
   const top = rows.slice().sort((a,b)=>b[N.imp]-a[N.imp]).slice(0,S.leakTop).filter(r=>r[N.imp] > 0);
 
   const titleEl = document.getElementById('leakTitle');
-  titleEl.textContent = top.length
-    ? 'LARGEST IMPORT LEAKAGE — TOP ' + top.length
-    : 'LARGEST IMPORT LEAKAGE';
+  titleEl.textContent = 'LARGEST IMPORT LEAKAGE';
 
-  /* More room for industry names, less for the bars themselves. */
-  const W = 760, rowH = 26, padT = 8, labelW = 350, valW = 120;
-  const H = Math.max(80, padT + top.length*rowH + 10);
-  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  /* Full industry names, wrapped onto multiple lines rather than cut off.
+     More room for names, less for the bars themselves. */
+  const W = 850, padT = 8, labelW = 460, valW = 150;
+  const fontPx = 9.5, lineH = 12, minRowH = 26;
+  svg.setAttribute('viewBox', '0 0 ' + W + ' 100'); // placeholder, corrected below
 
   if(!top.length){
     const t = mk('text', {x:12, y:30, class:'lk-name'});
     t.textContent = 'No imported purchases in the current selection.';
     svg.appendChild(t);
+    svg.setAttribute('viewBox', '0 0 ' + W + ' 60');
     return;
   }
 
+  const maxChars = Math.max(12, Math.floor((labelW - 6) / (fontPx * 0.56)));
   const max = Math.max(...top.map(r=>r[N.tot]));
   const barW = Math.max(80, W - labelW - valW - 14);
-  top.forEach((r,i)=>{
-    const y = padT + i*rowH;
-    const name = r[N.sup].length > 46 ? r[N.sup].slice(0,44) + '\u2026' : r[N.sup];
-    const label = mk('text', {x:0, y:y+15, class:'lk-name'});
-    label.textContent = name;
+
+  let y = padT;
+  top.forEach(r=>{
+    const lines = wrapLabel(r[N.sup], maxChars);
+    const textH = lines.length * lineH;
+    const rowH = Math.max(minRowH, textH + 10);
+    const barY = y + (rowH - 14) / 2;
+
+    const label = mk('text', {x:0, y:y + lineH, class:'lk-name'});
+    lines.forEach((line, li)=>{
+      const tspan = document.createElementNS(NS, 'tspan');
+      tspan.setAttribute('x', 0);
+      tspan.setAttribute('y', y + lineH + li*lineH);
+      tspan.textContent = line;
+      label.appendChild(tspan);
+    });
     svg.appendChild(label);
+
     const wIn  = Math.max(0, r[N.inr]/max*barW);
     const wImp = Math.max(0, r[N.imp]/max*barW);
-    svg.appendChild(mk('rect', {x:labelW, y:y+4, width:wImp, height:14, class:'lk-bar'}));
-    svg.appendChild(mk('rect', {x:labelW+wImp, y:y+4, width:wIn, height:14, class:'lk-bar inreg'}));
-    const val = mk('text', {x:W, y:y+15, class:'lk-val', 'text-anchor':'end'});
-    val.textContent = short(r[N.imp]);
+    svg.appendChild(mk('rect', {x:labelW, y:barY, width:wImp, height:14, class:'lk-bar'}));
+    svg.appendChild(mk('rect', {x:labelW+wImp, y:barY, width:wIn, height:14, class:'lk-bar inreg'}));
+
+    const val = mk('text', {x:W, y:barY+11, class:'lk-val', 'text-anchor':'end'});
+    val.textContent = usd(r[N.imp]);
     svg.appendChild(val);
+
     const tip = mk('title', {});
     tip.textContent = r[N.sup] + ' — ' + usd(r[N.imp]) + ' imported of ' + usd(r[N.tot]) + ' total';
     svg.appendChild(tip);
+
+    y += rowH;
   });
+
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + (y + 6));
 }
 
 /* ------------------------------------------------ controls */
