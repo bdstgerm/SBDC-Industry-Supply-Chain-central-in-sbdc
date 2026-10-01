@@ -229,9 +229,9 @@ main{padding-bottom:46px}
       <div class="field f-full">
         <span class="lbl" id="fLabel">Filter</span>
         <div class="chips" role="group" aria-labelledby="fLabel">
-          <button class="chip" id="fImport" type="button" aria-pressed="false">Mostly imported</button>
-          <button class="chip" id="fLtc" type="button" aria-pressed="false">LTC matches</button>
-          <button class="chip" id="fNonzero" type="button" aria-pressed="true">Hide $0 lines</button>
+          <button class="chip" id="fImport" type="button" aria-pressed="false">Mostly imported<span class="tip-wrap" onclick="event.stopPropagation()"><i class="tip-icon" tabindex="0" role="img" aria-label="Explanation" data-tip="Shows only supplier industries where imported purchases make up 50% or more of total purchases for that line.">i</i></span></button>
+          <button class="chip" id="fLtc" type="button" aria-pressed="false">LTC matches<span class="tip-wrap" onclick="event.stopPropagation()"><i class="tip-icon" tabindex="0" role="img" aria-label="Explanation" data-tip="Shows only supplier industries with at least one repeat SBDC client match in 2025, at either the 2-digit or 6-digit NAICS level.">i</i></span></button>
+          <button class="chip" id="fNonzero" type="button" aria-pressed="true">Hide $0 lines<span class="tip-wrap" onclick="event.stopPropagation()"><i class="tip-icon" tabindex="0" role="img" aria-label="Explanation" data-tip="Hides supplier industries with $0 in total purchases for this cluster. Turn off to see every NAICS line, including ones with no recorded purchase activity.">i</i></span></button>
         </div>
       </div>
       <div class="field">
@@ -594,7 +594,10 @@ q.oninput = ()=>{ S.q = q.value; S.page = 1; drawDetail(); };
 
 function chip(id, key){
   const el = document.getElementById(id);
-  el.onclick = ()=>{ S[key] = !S[key]; el.setAttribute('aria-pressed', S[key]); S.page = 1; drawDetail(); };
+  el.onclick = (e)=>{
+    if(e.target.closest('.tip-wrap')) return;
+    S[key] = !S[key]; el.setAttribute('aria-pressed', S[key]); S.page = 1; drawDetail();
+  };
 }
 chip('fImport', 'onlyImport');
 chip('fLtc', 'onlyLtc');
